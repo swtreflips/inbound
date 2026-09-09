@@ -1,0 +1,10 @@
+# Dependencies for mainfinal4.py
+#
+# Recreate the environment with:
+#     python -m venv .venv
+#     .venv\Scripts\python.exe -m pip install -r requirements.txt
+
+pandas>=2.0          # all vendor dataframes
+xlwings>=0.30        # drives Excel to paste into the .xlsm template (needs Excel installed)
+openpyxl>=3.1        # pd.read_excel engine for .xlsx sources
+xlrd>=2.0            # pd.read_excel engine for the legacy .xls Topocean export

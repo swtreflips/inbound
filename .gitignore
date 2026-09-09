@@ -1,1 +1,11 @@
-desktop.ini 
+desktop.ini
+
+# Virtual environment - recreate with requirements.txt, never commit it
+.venv/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Notebook checkpoints
+.ipynb_checkpoints/

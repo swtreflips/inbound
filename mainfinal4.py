@@ -7,6 +7,18 @@ import xlwings as xw
 from datetime import datetime
 import os
 from find_latest_folders import get_latest_folders
+from onedrive_path import get_inbound_base_dir
+
+# Template lives next to this script so it stays version-controlled alongside the
+# column positions the paste depends on.
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMPLATE_NAME = "Inbound Weekly Update TemplateRaw.xlsm"
+
+# Resolved from the OneDrive sync roots registered on this machine, so the script works
+# for anyone the "Inbound Update" folder is shared with - not just its owner.
+# Override with the INBOUND_UPDATE_DIR environment variable if needed.
+BASE_DIR = get_inbound_base_dir()
+print(f"Inbound Update folder: {BASE_DIR}")
 
 # Functions
 ERP_df = None
@@ -15,7 +27,7 @@ OEC_Portal_df = None
 OEC_Email_df = None
 Soma_df = None
 TaneraGo_df = None
-Harbour_df = None
+BluVoyix_df = None
 Idc_df = None
 
 # File Pattern Recognition
@@ -98,17 +110,17 @@ def clean_tanerago(df: pd.DataFrame) -> pd.DataFrame:
 
 # Opening Template and Pasting Dataframes
 def load_template_and_paste_data(
-    prefix: str = "Inbound Weekly Update Template",
+    template: Optional[str] = None,
     sheets_data: Dict[str, pd.DataFrame] = None
 ) -> None:
-    file_pattern = f"{prefix}*.xlsm"
-    matching_files = glob.glob(file_pattern)
+    # Exact filename, not a glob: "Inbound Weekly Update Template*.xlsm" also matches
+    # every saved report ("Inbound Weekly Update Template 09.09.26.xlsm"), and
+    # matching_files[0] would pick one arbitrarily.
+    file_to_load = template or os.path.join(SCRIPT_DIR, TEMPLATE_NAME)
 
-    if not matching_files:
-        print(f"No matching files found for prefix: {prefix}")
+    if not os.path.exists(file_to_load):
+        print(f"Template not found: {file_to_load}")
         return
-
-    file_to_load = matching_files[0]
     app = xw.App(visible=False)
     wb = app.books.open(file_to_load)
     print(f"Loaded workbook: {file_to_load}")
@@ -136,13 +148,12 @@ def load_template_and_paste_data(
     # Save workbook into today's folder under ~/Documents/Reports/
     today = datetime.today()
     today_str = today.strftime("%m.%d.%y")
-    folder_name = today.strftime("%m.%d.%y")
-    reports_dir = os.path.expanduser(f"~/OneDrive - Prime Time Packaging/Inbound Update")
+    reports_dir = BASE_DIR
 
     # Create the folder if it doesn't exist
     os.makedirs(reports_dir, exist_ok=True)
 
-    new_filename = f"Inbound Weekly Update Template SN {today_str}.xlsm"
+    new_filename = f"Inbound Weekly Update Template {today_str}.xlsm"
     new_filepath = os.path.join(reports_dir, new_filename)
     wb.save(new_filepath)
     print(f"Workbook saved as: {new_filename} in {reports_dir}")
@@ -197,8 +208,17 @@ file_configs = {
         "kwargs": {},
         "postprocess": clean_tanerago
     },
-    "Harbour": {
-        "prefix": "Forwarder Inbound Template",
+    # Retired: the current template has no Harbour sheet. Left here in case it returns.
+    # "Harbour": {
+    #     "prefix": "Forwarder Inbound Template",
+    #     "extension": "xlsx",
+    #     "loader": pd.read_excel,
+    #     "kwargs": {}
+    # },
+    "BluVoyix": {
+        # BluVoyix_Shipment_Report_<epoch-ms>.xlsx - single sheet "Shipments",
+        # 50 columns that already line up with the template's A:AX. No cleaning.
+        "prefix": "BluVoyix_Shipment_Report_",
         "extension": "xlsx",
         "loader": pd.read_excel,
         "kwargs": {}
@@ -212,9 +232,8 @@ file_configs = {
 }
 
 # Define base directory
-base_dir = os.path.expanduser("~/OneDrive - Prime Time Packaging/Inbound Update")
 prefixes = [cfg["prefix"] for cfg in file_configs.values()]
-latest_folders = get_latest_folders(base_dir, prefixes)
+latest_folders = get_latest_folders(BASE_DIR, prefixes)
 
 # Data Cleaning Code Execution
 start_time = time.time()
@@ -245,8 +264,8 @@ sheets_data = {
     'OEC Email': OEC_Email_df,
     'Soma': Soma_df,
     'Tanera Go': TaneraGo_df,
-    'Harbour': Harbour_df,
-    'IDC': Idc_df  
+    'BluVoyix': BluVoyix_df,
+    'IDC': Idc_df
 }
 
 # Call the function 
